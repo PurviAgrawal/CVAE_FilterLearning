@@ -23,15 +23,9 @@ class Encoder(torch.nn.Module):
 
 	self.r1 = torch.nn.Parameter(torch.randn(self.filt_h).cuda())
         self.s1 = torch.nn.Parameter(torch.randn(self.filt_w).cuda())
-        self.filt1 = torch.ger(self.r1, self.s1)
-        self.f1 = (self.filt1.resize(self.output_nc, self.input_nc, self.filt1.shape[0], self.filt1.shape[1]))
 
         self.r2 = torch.nn.Parameter(torch.randn(self.filt_h).cuda())
         self.s2 = torch.nn.Parameter(torch.randn(self.filt_w).cuda())
-        self.filt2 = torch.ger(self.r2, self.s2)
-        self.f2 = (self.filt2.resize(self.output_nc, self.input_nc, self.filt2.shape[0], self.filt2.shape[1]))
-
-	self.f = torch.cat((self.f1, self.f2), 0)  # weight tensor has to be (self.ngf X self.input_nc X H X W)	
 
         self.fc = None
 
@@ -42,7 +36,15 @@ class Encoder(torch.nn.Module):
 	self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, x):
-        out1 = (self.tanh(F.conv2d(x, self.f, padding=(2, 2))))
+	filt1 = torch.ger(self.r1, self.s1)
+        f1 = (filt1.resize(self.output_nc, self.input_nc, filt1.shape[0], filt1.shape[1]))
+	
+	filt2 = torch.ger(self.r2, self.s2)
+        f2 = (filt2.resize(self.output_nc, self.input_nc, filt2.shape[0], filt2.shape[1]))
+	
+	f = torch.cat((f1, f2), 0)  # weight tensor has to be (self.ngf X self.input_nc X H X W)	
+	
+        out1 = (self.tanh(F.conv2d(x, f, padding=(2, 2))))
 	out = out1.view(self.ngf * self.batch_size, -1)
         out = (self.tanh(self.fnn_layer1(out)))
         out = (self.tanh(self.fnn_layer2(out)))
